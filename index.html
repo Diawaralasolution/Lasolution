@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="description" content="Votre marketplace de matériaux de construction, plomberie, électricité et quincaillerie." />
+    <meta name="theme-color" content="#1e3a5f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ma Boutique" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='108' fill='%23f97316'/><text x='256' y='340' text-anchor='middle' font-family='Arial' font-weight='900' font-size='300' fill='white'>B</text></svg>" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='108' fill='%23f97316'/><text x='256' y='340' text-anchor='middle' font-family='Arial' font-weight='900' font-size='300' fill='white'>B</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <title>Chargement...</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // === PWA: Inline manifest ===
+      (function() {
+        var fallbackIcon = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='108' fill='%23f97316'/><text x='256' y='340' text-anchor='middle' font-family='Arial' font-weight='900' font-size='300' fill='white'>B</text></svg>";
+        var appName = "Ma Boutique";
+        var shortName = "Boutique";
+        var iconSrc = fallbackIcon;
+        var iconType = "image/svg+xml";
+
+        // Lire le nom et le logo définis dans l'administration depuis le cache local
+        try {
+          var saved = localStorage.getItem('batimarket-storage');
+          if (saved) {
+            var parsed = JSON.parse(saved);
+            var company = parsed && parsed.state && parsed.state.companyInfo;
+            if (company) {
+              if (company.name) {
+                appName = company.name;
+                shortName = company.name.length > 12 ? company.name.substring(0, 12) : company.name;
+              }
+              if (company.logo && (company.logo.indexOf('data:image') === 0 || company.logo.indexOf('https://') === 0 || company.logo.indexOf('http://') === 0)) {
+                iconSrc = company.logo;
+                if (company.logo.indexOf('image/png') > -1) iconType = 'image/png';
+                else if (company.logo.indexOf('image/jpeg') > -1 || company.logo.indexOf('image/jpg') > -1) iconType = 'image/jpeg';
+                else if (company.logo.indexOf('image/svg') > -1) iconType = 'image/svg+xml';
+                else iconType = 'image/png';
+              }
+            }
+          }
+        } catch (e) {}
+
+        // Mettre aussi à jour favicon, icône Apple et titre PWA avant l'installation
+        try {
+          var fav = document.querySelector("link[rel='icon']");
+          if (fav) fav.href = iconSrc;
+          var apple = document.querySelector("link[rel='apple-touch-icon']");
+          if (apple) apple.href = iconSrc;
+          var appleTitle = document.querySelector("meta[name='apple-mobile-web-app-title']");
+          if (appleTitle) appleTitle.setAttribute('content', appName);
+        } catch (e) {}
+
+        var manifest = {
+          name: appName,
+          short_name: shortName,
+          description: "Matériaux de construction, plomberie, électricité et quincaillerie",
+          start_url: window.location.origin + window.location.pathname,
+          display: "standalone",
+          background_color: "#1e3a5f",
+          theme_color: "#1e3a5f",
+          orientation: "portrait-primary",
+          scope: window.location.origin + "/",
+          lang: "fr",
+          categories: ["shopping","business"],
+          icons: [{
+            src: iconSrc,
+            sizes: "512x512",
+            type: iconType,
+            purpose: "any maskable"
+          }]
+        };
+        var blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = url;
+        document.head.appendChild(link);
+      })();
+
+      // === PWA: Inline Service Worker ===
+      if ('serviceWorker' in navigator) {
+        var swCode = `
+          var CACHE = 'bm-v3';
+          self.addEventListener('install', function(e) {
+            e.waitUntil(caches.open(CACHE).then(function(c) { return c.add('/'); }));
+            self.skipWaiting();
+          });
+          self.addEventListener('activate', function(e) {
+            e.waitUntil(caches.keys().then(function(k) {
+              return Promise.all(k.filter(function(n) { return n !== CACHE; }).map(function(n) { return caches.delete(n); }));
+            }));
+            self.clients.claim();
+          });
+          self.addEventListener('fetch', function(e) {
+            if (e.request.method !== 'GET') return;
+            e.respondWith(
+              fetch(e.request).then(function(r) {
+                if (r.status === 200) { var c = r.clone(); caches.open(CACHE).then(function(cache) { cache.put(e.request, c); }); }
+                return r;
+              }).catch(function() {
+                return caches.match(e.request).then(function(c) { return c || caches.match('/'); });
+              })
+            );
+          });
+          self.addEventListener('push', function(e) {
+            var d = e.data ? e.data.json() : {title:'Boutique',body:'Nouvelle notification'};
+            e.waitUntil(self.registration.showNotification(d.title||'Boutique',{body:d.body||'',vibrate:[200,100,200]}));
+          });
+          self.addEventListener('notificationclick', function(e) {
+            e.notification.close();
+            e.waitUntil(clients.openWindow('/'));
+          });
+        `;
+        var swBlob = new Blob([swCode], {type:'application/javascript'});
+        var swUrl = URL.createObjectURL(swBlob);
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register(swUrl, {scope:'/'}).then(function() {
+            console.log('SW registered');
+          }).catch(function(err) {
+            console.log('SW scope error, trying root:', err.message);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>
